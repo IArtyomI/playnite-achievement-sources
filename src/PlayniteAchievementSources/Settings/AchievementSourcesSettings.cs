@@ -49,10 +49,8 @@ namespace PlayniteAchievementSources.Settings
             get => steamApiKey;
             set
             {
-                if (SetValue(ref steamApiKey, value ?? string.Empty))
-                {
-                    OnPropertyChanged(nameof(SteamApiKeyStatus));
-                }
+                SetValue(ref steamApiKey, value ?? string.Empty);
+                OnPropertyChanged(nameof(SteamApiKeyStatus));
             }
         }
 
