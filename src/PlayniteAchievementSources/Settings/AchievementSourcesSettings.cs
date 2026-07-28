@@ -1,6 +1,7 @@
 using Playnite.SDK;
 using Playnite.SDK.Data;
 using PlayniteAchievementSources.Models;
+using System.Collections.Generic;
 
 namespace PlayniteAchievementSources.Settings
 {
