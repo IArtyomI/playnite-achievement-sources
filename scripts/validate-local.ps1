@@ -19,6 +19,7 @@ $projectDirectory = Join-Path $repositoryRoot "src\PlayniteAchievementSources"
 $outputDirectory = Join-Path $projectDirectory "bin\$Configuration\net462"
 $assemblyPath = Join-Path $outputDirectory "PlayniteAchievementSources.dll"
 $manifestPath = Join-Path $outputDirectory "extension.yaml"
+$vswherePath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 
 function Resolve-MSBuild {
     $command = Get-Command msbuild.exe -ErrorAction SilentlyContinue
@@ -26,7 +27,6 @@ function Resolve-MSBuild {
         return $command.Source
     }
 
-    $vswherePath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path $vswherePath) {
         $candidate = & $vswherePath -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" |
             Select-Object -First 1
@@ -37,6 +37,31 @@ function Resolve-MSBuild {
     }
 
     throw "MSBuild was not found. Install Visual Studio 2022 or Build Tools with .NET Framework 4.6.2 targeting support."
+}
+
+function Resolve-VSTest {
+    $command = Get-Command vstest.console.exe -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    if (Test-Path $vswherePath) {
+        $patterns = @(
+            "Common7\IDE\Extensions\TestPlatform\vstest.console.exe",
+            "Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+        )
+
+        foreach ($pattern in $patterns) {
+            $candidate = & $vswherePath -latest -products * -find $pattern |
+                Select-Object -First 1
+
+            if ($candidate) {
+                return $candidate
+            }
+        }
+    }
+
+    throw "Visual Studio Test Platform was not found. Modify the Visual Studio Build Tools installation and add the Testing tools core features component."
 }
 
 if (-not (Test-Path $solutionPath)) {
@@ -85,13 +110,21 @@ try {
         throw "Expected Playnite extension manifest was not produced: $manifestPath"
     }
 
-    $testProjects = @(Get-ChildItem -Path (Join-Path $repositoryRoot "tests") -Filter *.csproj -Recurse -ErrorAction SilentlyContinue)
-    foreach ($testProject in $testProjects) {
-        Write-Host "Running tests: $($testProject.FullName)"
-        dotnet test $testProject.FullName --configuration $Configuration --no-restore
+    $testAssemblies = @(Get-ChildItem -Path (Join-Path $repositoryRoot "tests") -Filter *.Tests.dll -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.FullName -like "*\bin\$Configuration\net462\*" -and
+            $_.FullName -notlike "*\ref\*"
+        })
 
-        if ($LASTEXITCODE -ne 0) {
-            throw "Tests failed for $($testProject.FullName)."
+    if ($testAssemblies.Count -gt 0) {
+        $vstestPath = Resolve-VSTest
+        foreach ($testAssembly in $testAssemblies) {
+            Write-Host "Running tests: $($testAssembly.FullName)"
+            & $vstestPath $testAssembly.FullName /Logger:Console /TestCaseFilter:"Category!=Manual"
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Tests failed for $($testAssembly.FullName)."
+            }
         }
     }
 
