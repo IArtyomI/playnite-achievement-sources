@@ -24,3 +24,5 @@ Local-only mode controls this plugin. It does not disable networking inside a ga
 ## Sensitive data
 
 The repository must not contain real account IDs, authentication data, usernames from source files, machine-specific paths, or private achievement databases. Test fixtures must be synthetic or sanitized.
+
+Optional API credentials are stored only in the Playnite plugin settings area. Steam Web API keys are protected with Windows Data Protection API using the current-user scope before Playnite serializes the settings. The plain key is excluded from serialization and must never be written to logs, diagnostics, exports, fixtures, or crash messages.

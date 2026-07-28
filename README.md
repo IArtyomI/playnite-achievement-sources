@@ -6,7 +6,7 @@ The project is designed to complement achievement display extensions rather than
 
 ## Project status
 
-Early development. The repository currently contains the architectural foundation and a loadable Playnite plugin shell. No installable release is available yet.
+Early development. Version 0.2 adds persisted global settings, optional encrypted Steam Web API-key storage, and read-only Steam AppID diagnostics from Playnite metadata, Steam links, and supported local configuration files. Achievement-state import and live monitoring are not enabled yet.
 
 ## Goals
 
@@ -43,6 +43,8 @@ Run the local validation workflow:
 The script restores and rebuilds the solution, verifies the Playnite extension output, and runs test projects when present. Hosted GitHub Actions are intentionally not used.
 
 After the build succeeds, add the printed output directory in Playnite under **Settings > For developers > External extensions** and complete the manual load checklist.
+
+Right-click a single game and open **Achievement Sources > Inspect Steam AppID sources** to review the current read-only detection evidence.
 
 ## Documentation
 
