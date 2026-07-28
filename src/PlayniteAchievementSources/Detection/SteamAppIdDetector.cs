@@ -13,7 +13,7 @@ namespace PlayniteAchievementSources.Detection
         private const int MaximumDirectoriesVisited = 2500;
 
         private static readonly Regex IniAppIdPattern = new Regex(
-            @"(?im)^\s*(?:app_?id|appid|steam_?app_?id|steamappid)\s*=\s*[\""']?(\d{1,10})",
+            @"(?im)^\s*(?:app_?id|appid|steam_?app_?id|steamappid)\s*=\s*[""']?(\d{1,10})",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         private static readonly Regex SteamStoreLinkPattern = new Regex(
