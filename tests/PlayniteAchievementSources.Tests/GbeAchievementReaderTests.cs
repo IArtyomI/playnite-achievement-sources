@@ -53,8 +53,7 @@ namespace PlayniteAchievementSources.Tests
   ""ACH_PROGRESS"": { ""earned"": false, ""progress"": 3, ""max_progress"": 10 }
 }");
 
-                var context = fixture.CreateContext();
-                var result = new GbeAchievementReader().Read(context);
+                var result = new GbeAchievementReader().Read(fixture.CreateContext());
 
                 Assert.True(result.HasDefinitions);
                 Assert.True(result.HasState);
@@ -67,13 +66,15 @@ namespace PlayniteAchievementSources.Tests
                 Assert.Equal("Completed achievement", completed.DisplayName);
                 Assert.Equal("Finish the task", completed.Description);
                 Assert.NotNull(completed.UnlockTimeUtc);
-                Assert.EndsWith("done.png", completed.UnlockedIconPath, StringComparison.OrdinalIgnoreCase);
-                Assert.EndsWith("done_gray.png", completed.LockedIconPath, StringComparison.OrdinalIgnoreCase);
+                Assert.True(completed.UnlockedIconPath.EndsWith("done.png", StringComparison.OrdinalIgnoreCase));
+                Assert.True(completed.LockedIconPath.EndsWith("done_gray.png", StringComparison.OrdinalIgnoreCase));
 
                 var progress = result.Achievements.Single(item => item.AchievementId == "ACH_PROGRESS");
                 Assert.False(progress.IsUnlocked);
-                Assert.Equal(3d, progress.CurrentProgress);
-                Assert.Equal(10d, progress.MaximumProgress);
+                Assert.True(progress.CurrentProgress.HasValue);
+                Assert.True(progress.MaximumProgress.HasValue);
+                Assert.Equal(3d, progress.CurrentProgress.Value);
+                Assert.Equal(10d, progress.MaximumProgress.Value);
 
                 var locked = result.Achievements.Single(item => item.AchievementId == "ACH_LOCKED");
                 Assert.Equal("Locked achievement", locked.DisplayName);
@@ -83,7 +84,7 @@ namespace PlayniteAchievementSources.Tests
         }
 
         [Fact]
-        public void Read_UsesLegacySaveRootAndReportsMissingStateHonestly()
+        public void Read_ReportsMissingStateHonestly()
         {
             using (var fixture = new TemporaryFixture())
             {
@@ -99,8 +100,7 @@ namespace PlayniteAchievementSources.Tests
   }
 ]");
 
-                var context = fixture.CreateContext();
-                var result = new GbeAchievementReader().Read(context);
+                var result = new GbeAchievementReader().Read(fixture.CreateContext());
 
                 Assert.True(result.HasDefinitions);
                 Assert.False(result.HasState);
