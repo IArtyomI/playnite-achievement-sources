@@ -120,7 +120,10 @@ try {
         $vstestPath = Resolve-VSTest
         foreach ($testAssembly in $testAssemblies) {
             Write-Host "Running tests: $($testAssembly.FullName)"
-            & $vstestPath $testAssembly.FullName /Logger:Console /TestCaseFilter:"Category!=Manual"
+            & $vstestPath `
+                $testAssembly.FullName `
+                "/TestAdapterPath:$($testAssembly.DirectoryName)" `
+                "/Logger:console;verbosity=minimal"
 
             if ($LASTEXITCODE -ne 0) {
                 throw "Tests failed for $($testAssembly.FullName)."
