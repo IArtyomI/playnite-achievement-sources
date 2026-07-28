@@ -39,16 +39,13 @@ function Resolve-MSBuild {
     throw "MSBuild was not found. Install Visual Studio 2022 or Build Tools with .NET Framework 4.6.2 targeting support."
 }
 
-function Get-RunningPlayniteProcesses {
-    return @(Get-Process -ErrorAction SilentlyContinue |
-        Where-Object { $_.ProcessName -like "Playnite*" })
-}
-
 if (-not (Test-Path $solutionPath)) {
     throw "Solution not found: $solutionPath"
 }
 
-$runningPlayniteProcesses = Get-RunningPlayniteProcesses
+$runningPlayniteProcesses = @(Get-Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.ProcessName -like "Playnite*" })
+
 if ($runningPlayniteProcesses.Count -gt 0) {
     $processSummary = ($runningPlayniteProcesses |
         Sort-Object ProcessName, Id |
@@ -88,7 +85,7 @@ try {
         throw "Expected Playnite extension manifest was not produced: $manifestPath"
     }
 
-    $testProjects = Get-ChildItem -Path (Join-Path $repositoryRoot "tests") -Filter *.csproj -Recurse -ErrorAction SilentlyContinue
+    $testProjects = @(Get-ChildItem -Path (Join-Path $repositoryRoot "tests") -Filter *.csproj -Recurse -ErrorAction SilentlyContinue)
     foreach ($testProject in $testProjects) {
         Write-Host "Running tests: $($testProject.FullName)"
         dotnet test $testProject.FullName --configuration $Configuration --no-restore
