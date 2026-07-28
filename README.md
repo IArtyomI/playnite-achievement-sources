@@ -34,13 +34,15 @@ Requirements:
 - Visual Studio 2022 with .NET Framework 4.6.2 targeting support
 - Playnite
 
-Build the solution:
+Run the local validation workflow:
 
 ```powershell
-msbuild AchievementSources.sln /restore /p:Configuration=Debug
+.\scripts\validate-local.ps1
 ```
 
-Add the build output directory to Playnite under **Settings > For developers > External extensions**.
+The script restores and rebuilds the solution, verifies the Playnite extension output, and runs test projects when present. Hosted GitHub Actions are intentionally not used.
+
+After the build succeeds, add the printed output directory in Playnite under **Settings > For developers > External extensions** and complete the manual load checklist.
 
 ## Documentation
 
@@ -48,4 +50,5 @@ Add the build output directory to Playnite under **Settings > For developers > E
 - [Provider contract](docs/provider-contract.md)
 - [Privacy model](docs/privacy-model.md)
 - [Supported formats](docs/supported-formats.md)
+- [Local validation](docs/local-validation.md)
 - [Separate-plugin decision](docs/adr/0001-separate-plugin.md)
