@@ -1,0 +1,30 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+TestResults/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains
+.idea/
+*.sln.iml
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Playnite development output
+*.pext
+plugin-data/
+fixtures-private/
+
+# OS files
+Thumbs.db
+.DS_Store

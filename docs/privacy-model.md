@@ -1,0 +1,26 @@
+# Privacy model
+
+## Principles
+
+- Local achievement records remain local by default.
+- Online account queries require an enabled online source.
+- Per-game settings override global defaults.
+- Disabling tracking stops scans, monitoring, exports, and display updates for that game.
+- Source diagnostics must explain what was contacted and what was read.
+
+## Tracking modes
+
+- **Inherit**: use the global mode.
+- **Automatic**: select the best capable source according to configured precedence.
+- **Native only**: use enabled platform-native sources only.
+- **Local only**: use local sources and avoid online achievement queries by this plugin.
+- **Hybrid**: combine enabled native and local sources.
+- **Disabled**: perform no achievement work for the game.
+
+## Important limitation
+
+Local-only mode controls this plugin. It does not disable networking inside a game or platform client. The plugin must not claim that Steam, GOG, Epic, or another platform cannot receive activity unless the launch environment independently guarantees that condition.
+
+## Sensitive data
+
+The repository must not contain real account IDs, authentication data, usernames from source files, machine-specific paths, or private achievement databases. Test fixtures must be synthetic or sanitized.
