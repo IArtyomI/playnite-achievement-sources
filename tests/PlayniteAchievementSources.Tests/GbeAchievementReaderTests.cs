@@ -66,8 +66,8 @@ namespace PlayniteAchievementSources.Tests
                 Assert.Equal("Completed achievement", completed.DisplayName);
                 Assert.Equal("Finish the task", completed.Description);
                 Assert.NotNull(completed.UnlockTimeUtc);
-                Assert.True(completed.UnlockedIconPath.EndsWith("done.png", StringComparison.OrdinalIgnoreCase));
-                Assert.True(completed.LockedIconPath.EndsWith("done_gray.png", StringComparison.OrdinalIgnoreCase));
+                Assert.EndsWith("done.png", completed.UnlockedIconPath, StringComparison.OrdinalIgnoreCase);
+                Assert.EndsWith("done_gray.png", completed.LockedIconPath, StringComparison.OrdinalIgnoreCase);
 
                 var progress = result.Achievements.Single(item => item.AchievementId == "ACH_PROGRESS");
                 Assert.False(progress.IsUnlocked);
