@@ -39,8 +39,22 @@ function Resolve-MSBuild {
     throw "MSBuild was not found. Install Visual Studio 2022 or Build Tools with .NET Framework 4.6.2 targeting support."
 }
 
+function Get-RunningPlayniteProcesses {
+    return @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProcessName -like "Playnite*" })
+}
+
 if (-not (Test-Path $solutionPath)) {
     throw "Solution not found: $solutionPath"
+}
+
+$runningPlayniteProcesses = Get-RunningPlayniteProcesses
+if ($runningPlayniteProcesses.Count -gt 0) {
+    $processSummary = ($runningPlayniteProcesses |
+        Sort-Object ProcessName, Id |
+        ForEach-Object { "$($_.ProcessName) (PID $($_.Id))" }) -join ", "
+
+    throw "Playnite is still running and has the development plugin DLL loaded: $processSummary. Exit Playnite completely, including its system-tray process, then run this script again."
 }
 
 $msbuildPath = Resolve-MSBuild
@@ -48,10 +62,15 @@ $msbuildPath = Resolve-MSBuild
 Push-Location $repositoryRoot
 try {
     if (-not $SkipClean) {
-        Get-ChildItem -Path (Join-Path $repositoryRoot "src"), (Join-Path $repositoryRoot "tests") `
-            -Directory -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in @("bin", "obj") } |
-            Remove-Item -Recurse -Force -ErrorAction Stop
+        try {
+            Get-ChildItem -Path (Join-Path $repositoryRoot "src"), (Join-Path $repositoryRoot "tests") `
+                -Directory -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -in @("bin", "obj") } |
+                Remove-Item -Recurse -Force -ErrorAction Stop
+        }
+        catch [System.UnauthorizedAccessException] {
+            throw "A build output file is locked. Exit Playnite completely and close any tool inspecting the plugin output directory, then run validation again. Original error: $($_.Exception.Message)"
+        }
     }
 
     Write-Host "Building $Configuration with $msbuildPath"
@@ -82,7 +101,7 @@ try {
     Write-Host ""
     Write-Host "Local validation passed."
     Write-Host "Plugin output: $outputDirectory"
-    Write-Host "Next: add this directory in Playnite under Settings > For developers > External extensions, restart Playnite, and complete the manual load checklist in docs/local-validation.md."
+    Write-Host "Next: start Playnite and complete the manual load checklist in docs/local-validation.md."
 }
 finally {
     Pop-Location
