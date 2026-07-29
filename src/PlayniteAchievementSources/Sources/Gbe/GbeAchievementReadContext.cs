@@ -15,5 +15,7 @@ namespace PlayniteAchievementSources.Sources.Gbe
         public string PreferredLanguage { get; set; } = "english";
 
         public IList<string> SaveRootDirectories { get; } = new List<string>();
+
+        public IList<string> ExpectedStatePaths { get; } = new List<string>();
     }
 }

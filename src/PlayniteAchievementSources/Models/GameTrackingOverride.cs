@@ -15,5 +15,7 @@ namespace PlayniteAchievementSources.Models
         public string SourceGameId { get; set; } = string.Empty;
 
         public string StatePath { get; set; } = string.Empty;
+
+        public string DefinitionPath { get; set; } = string.Empty;
     }
 }

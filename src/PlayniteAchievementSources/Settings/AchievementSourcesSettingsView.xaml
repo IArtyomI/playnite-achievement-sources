@@ -28,11 +28,18 @@
                        Text="Allows read-only discovery of supported local schemas and unlock-state files." />
 
             <CheckBox Margin="0,12,0,0"
+                      IsChecked="{Binding Settings.AllowMetadataPreparation, Mode=TwoWay}"
+                      Content="Allow preparing GBE-compatible metadata files" />
+            <TextBlock Margin="20,3,0,0"
+                       TextWrapping="Wrap"
+                       Text="Default off. Each per-game write still requires a dry run and explicit confirmation. Runtime achievement state is never written." />
+
+            <CheckBox Margin="0,12,0,0"
                       IsChecked="{Binding Settings.EnableOnlineMetadata, Mode=TwoWay}"
                       Content="Allow online metadata lookups" />
             <TextBlock Margin="20,3,0,0"
                        TextWrapping="Wrap"
-                       Text="Allows metadata requests when names, descriptions, icons, or hidden status are unavailable locally." />
+                       Text="Reserved for permitted metadata providers. Version 1 does not make online schema requests; use explicit JSON import when local definitions are missing." />
 
             <Separator Margin="0,20,0,18" />
 
@@ -54,7 +61,8 @@
 
             <CheckBox Margin="0,12,0,0"
                       IsChecked="{Binding Settings.UseSteamApiWhenLocalMetadataMissing, Mode=TwoWay}"
-                      Content="Use the Steam API when local metadata is missing" />
+                      Content="Use the Steam API when local metadata is missing (not available in v1)"
+                      IsEnabled="False" />
 
             <Button Width="100"
                     Margin="0,12,0,0"
@@ -67,7 +75,7 @@
             <TextBlock FontSize="14" FontWeight="SemiBold" Text="Current milestone" />
             <TextBlock Margin="0,4,0,0"
                        TextWrapping="Wrap"
-                       Text="Per-game tracking modes, versioned local snapshots, and a producer-neutral bridge catalog are available. Direct Playnite Achievements import, notifications, and live monitoring are not enabled yet." />
+                       Text="GBE-compatible local definition/state reading, explicit metadata import, automatic snapshot monitoring, and the producer-neutral bridge catalog are available. Playnite Achievements owns import and notifications." />
         </StackPanel>
     </ScrollViewer>
 </UserControl>

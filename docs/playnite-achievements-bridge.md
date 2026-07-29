@@ -1,14 +1,12 @@
-# Playnite Achievements bridge proposal
+# Playnite Achievements bridge
 
-## Current limitation
-
-Playnite Achievements currently discovers `IDataProvider` implementations only from its own assembly. A separate Playnite extension therefore cannot register a provider without either replacing/forking Playnite Achievements or adding a small upstream extension point.
-
-Achievement Sources does not replace the Playnite Achievements extension identity and does not write directly to its internal database.
+Achievement Sources does not replace the Playnite Achievements extension identity and
+does not write directly to its internal database. The companion draft implements a
+normal built-in `ExternalSnapshotDataProvider`.
 
 ## File bridge
 
-Version 0.5 prototypes a producer-neutral, read-only file boundary:
+The producer-neutral, read-only file boundary is:
 
 ```text
 <Playnite ExtensionsDataPath>\<producer plugin id>\
@@ -30,21 +28,32 @@ Snapshot paths are relative by design. Consumers must reject rooted paths, trave
 
 ## Consumer semantics
 
-A generic external-snapshot provider in Playnite Achievements should apply these rules:
+The External Snapshot provider applies these rules:
 
 - `StateKnown = false`: definitions may be displayed, but no locked/unlocked conclusion is authoritative. Existing state must not be cleared.
-- `StateKnown = true`, `IsCompleteSnapshot = false`: merge only explicitly represented unlock/progress information. Missing records are not evidence of a locked state.
+- `StateKnown = true`, `IsCompleteSnapshot = false`: discoverable but not cache-authoritative; no cache write occurs.
 - `StateKnown = true`, `IsCompleteSnapshot = true`: the snapshot can be treated as an authoritative point-in-time state for that producer and game.
 - unknown fields are ignored for forward compatibility;
 - unsupported major schema versions are rejected;
 - source/evidence paths remain local and must not be uploaded or written to normal diagnostics.
 
-## Minimal upstream change
+## Automatic update flow
 
-The preferred Playnite Achievements change is one built-in `ExternalSnapshotDataProvider` that scans immediate extension-data roots for `bridge\v1\index.json` and consumes compliant producers. This avoids binary references between plugins and supports multiple independent producers.
+The producer debounces resolved `achievements.json` changes, waits before re-reading,
+rejects malformed/partial input, and atomically updates its snapshot and catalog only
+when normalized content changes. The consumer scans catalogs on a bounded interval,
+debounces per-game work, and requests only an `ExternalSnapshot` refresh for the changed
+Playnite game through the existing refresh coordinator and cache manager.
 
-An alternative is a public runtime registration method on `ProviderRegistry`, but that would require a shared binary contract and stricter assembly-version coordination. The file bridge is more stable for independently released Playnite extensions.
+The first authoritative import is a baseline and does not emit unlock notifications.
+Later locked-to-unlocked differences raise the existing Playnite Achievements
+`AchievementUnlocked` event; its existing notification policy determines whether a
+toast appears. Unchanged refreshes emit nothing. The producer never calls notification
+services.
 
-## Prototype boundary
+When multiple producers expose a game, the consumer deterministically selects the
+newest valid authoritative snapshot. Producer disappearance or malformed replacement
+does not delete cached state. No component writes directly to the achievement database.
 
-Achievement Sources now publishes and validates the producer side of this contract. It does not yet modify Playnite Achievements, trigger its refresh pipeline, write its cache, or display its notifications.
+Real-world acceptance must use an isolated Playnite profile. The ordinary profile must
+not contain both the development extension and another Playnite Achievements fork.

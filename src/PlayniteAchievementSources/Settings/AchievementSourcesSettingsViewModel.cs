@@ -51,11 +51,32 @@ namespace PlayniteAchievementSources.Settings
         public void EndEdit()
         {
             SaveImmediately();
+            plugin.RebuildMonitoring();
         }
 
         public AchievementTrackingMode GetOverrideMode(Guid playniteGameId)
         {
             return GameTrackingPolicy.GetOverrideMode(Settings.GameTrackingOverrides, playniteGameId);
+        }
+
+        public GameTrackingOverride GetGameOverride(Guid playniteGameId)
+        {
+            return Settings.GameTrackingOverrides?
+                .LastOrDefault(item => item != null && item.PlayniteGameId == playniteGameId);
+        }
+
+        public void SetGamePaths(Guid playniteGameId, string definitionPath, string statePath)
+        {
+            var item = GetGameOverride(playniteGameId);
+            if (item == null)
+            {
+                item = new GameTrackingOverride { PlayniteGameId = playniteGameId };
+                Settings.GameTrackingOverrides.Add(item);
+            }
+
+            item.DefinitionPath = definitionPath?.Trim() ?? string.Empty;
+            item.StatePath = statePath?.Trim() ?? string.Empty;
+            SaveImmediately();
         }
 
         public AchievementTrackingMode GetEffectiveMode(Guid playniteGameId)

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
 
@@ -41,11 +42,25 @@ namespace PlayniteAchievementSources.Snapshots
             Directory.CreateDirectory(snapshotDirectory);
 
             var destinationPath = Path.Combine(snapshotDirectory, $"{snapshot.PlayniteGameId:N}.json");
+            var signaturePath = destinationPath + ".content.sha256";
             var temporaryPath = destinationPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             var serializer = new JavaScriptSerializer
             {
                 MaxJsonLength = int.MaxValue
             };
+
+            var originalGeneratedAt = snapshot.GeneratedAtUtc;
+            snapshot.GeneratedAtUtc = DateTime.MinValue;
+            var contentSignature = ComputeSha256(serializer.Serialize(CreatePayload(snapshot)));
+            snapshot.GeneratedAtUtc = originalGeneratedAt;
+            if (File.Exists(destinationPath) &&
+                File.Exists(signaturePath) &&
+                string.Equals(File.ReadAllText(signaturePath).Trim(), contentSignature, StringComparison.OrdinalIgnoreCase))
+            {
+                return destinationPath;
+            }
+
+            snapshot.GeneratedAtUtc = DateTime.UtcNow;
 
             try
             {
@@ -62,7 +77,42 @@ namespace PlayniteAchievementSources.Snapshots
                 }
 
                 catalog.Update(pluginDataDirectory, snapshot, destinationPath);
+                WriteTextAtomically(signaturePath, contentSignature);
                 return destinationPath;
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
+
+        private static string ComputeSha256(string value)
+        {
+            using (var algorithm = SHA256.Create())
+            {
+                return string.Concat(algorithm
+                    .ComputeHash(Encoding.UTF8.GetBytes(value ?? string.Empty))
+                    .Select(item => item.ToString("X2", CultureInfo.InvariantCulture)));
+            }
+        }
+
+        private static void WriteTextAtomically(string destinationPath, string value)
+        {
+            var temporaryPath = destinationPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.WriteAllText(temporaryPath, value, new UTF8Encoding(false));
+                if (File.Exists(destinationPath))
+                {
+                    File.Replace(temporaryPath, destinationPath, null);
+                }
+                else
+                {
+                    File.Move(temporaryPath, destinationPath);
+                }
             }
             finally
             {

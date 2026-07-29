@@ -12,6 +12,8 @@ namespace PlayniteAchievementSources.Sources.Gbe
     {
         private const int MaximumDirectoryDepth = 6;
         private const int MaximumDirectoriesVisited = 2500;
+        private const int MaximumAchievements = 10000;
+        private const long MaximumJsonBytes = 25L * 1024L * 1024L;
         private const string SourceKey = "gbe-compatible-local";
 
         private readonly JavaScriptSerializer serializer = new JavaScriptSerializer
@@ -126,6 +128,7 @@ namespace PlayniteAchievementSources.Sources.Gbe
                     string explicitError;
                     if (TryLoadDefinitions(explicitPath, out explicitDefinitions, out explicitError))
                     {
+                        diagnostics.Add("Selected adapter: explicit GBE-compatible definition JSON.");
                         return explicitPath;
                     }
 
@@ -146,16 +149,29 @@ namespace PlayniteAchievementSources.Sources.Gbe
 
             var candidates = EnumerateAchievementJsonFiles(installDirectory, diagnostics)
                 .OrderByDescending(path => GetDefinitionPriority(installDirectory, path))
-                .ThenBy(path => path, StringComparer.OrdinalIgnoreCase);
+                .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             foreach (var candidate in candidates)
             {
+                if (!string.Equals(
+                    new DirectoryInfo(Path.GetDirectoryName(candidate)).Name,
+                    "steam_settings",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    diagnostics.Add($"Rejected definition candidate outside a recognized steam_settings layout: {candidate}");
+                    continue;
+                }
+
                 object[] definitions;
                 string error;
                 if (TryLoadDefinitions(candidate, out definitions, out error))
                 {
+                    diagnostics.Add($"Selected adapter: recognized steam_settings achievements.json ({candidate}).");
                     return candidate;
                 }
+
+                diagnostics.Add($"Rejected definition candidate: {candidate} ({error})");
             }
 
             return string.Empty;
@@ -173,6 +189,8 @@ namespace PlayniteAchievementSources.Sources.Gbe
             {
                 candidates.Add(context.ExplicitStatePath);
             }
+
+            candidates.AddRange(context.ExpectedStatePaths);
 
             var appId = context.AppId.ToString(CultureInfo.InvariantCulture);
             foreach (var root in context.SaveRootDirectories.Where(path => !string.IsNullOrWhiteSpace(path)))
@@ -285,6 +303,26 @@ namespace PlayniteAchievementSources.Sources.Gbe
                 return false;
             }
 
+            if (definitions.Length == 0 || definitions.Length > MaximumAchievements)
+            {
+                error = $"the definition count must be between 1 and {MaximumAchievements}";
+                definitions = null;
+                return false;
+            }
+
+            var ids = definitions
+                .OfType<Dictionary<string, object>>()
+                .Select(definition => GetString(definition, "name").Trim())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToList();
+            if (ids.Count != definitions.Length ||
+                ids.Distinct(StringComparer.OrdinalIgnoreCase).Count() != ids.Count)
+            {
+                error = "the array contained empty, malformed, or duplicate achievement IDs";
+                definitions = null;
+                return false;
+            }
+
             if (definitions.Length > 0 && !definitions.Any(item =>
             {
                 var definition = item as Dictionary<string, object>;
@@ -327,6 +365,13 @@ namespace PlayniteAchievementSources.Sources.Gbe
 
             try
             {
+                var file = new FileInfo(path);
+                if (!file.Exists || file.Length > MaximumJsonBytes)
+                {
+                    error = $"the JSON file was missing or exceeded {MaximumJsonBytes} bytes";
+                    return false;
+                }
+
                 var json = File.ReadAllText(path);
                 value = serializer.DeserializeObject(json);
                 return value != null;

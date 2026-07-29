@@ -1,8 +1,11 @@
 using Playnite.SDK;
 using Playnite.SDK.Models;
 using Playnite.SDK.Plugins;
+using Playnite.SDK.Events;
 using PlayniteAchievementSources.Detection;
+using PlayniteAchievementSources.Metadata;
 using PlayniteAchievementSources.Models;
+using PlayniteAchievementSources.Monitoring;
 using PlayniteAchievementSources.Settings;
 using PlayniteAchievementSources.Snapshots;
 using PlayniteAchievementSources.Sources.Gbe;
@@ -11,6 +14,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace PlayniteAchievementSources
@@ -32,6 +38,10 @@ namespace PlayniteAchievementSources
         private readonly SteamAppIdDetector steamAppIdDetector = new SteamAppIdDetector();
         private readonly GbeAchievementReader gbeAchievementReader = new GbeAchievementReader();
         private readonly AchievementSnapshotWriter snapshotWriter = new AchievementSnapshotWriter();
+        private readonly GbeConfigurationResolver configurationResolver = new GbeConfigurationResolver();
+        private readonly GbeMetadataPreparer metadataPreparer = new GbeMetadataPreparer();
+        private readonly DebouncedFileMonitor fileMonitor = new DebouncedFileMonitor();
+        private readonly ILogger logger = LogManager.GetLogger();
 
         public override Guid Id => PluginId;
 
@@ -81,7 +91,7 @@ namespace PlayniteAchievementSources
                 MenuSection = "@Achievement Sources",
                 Description = "Show development status",
                 Action = _ => PlayniteApi.Dialogs.ShowMessage(
-                    "Achievement Sources is installed. Settings, per-game tracking modes, Steam AppID diagnostics, read-only GBE/Goldberg-compatible inspection, versioned local snapshots, and bridge catalog output are enabled. Live monitoring, notifications, and direct Playnite Achievements import are not enabled yet.",
+                    "Achievement Sources is installed. Settings, per-game tracking modes, Steam AppID diagnostics, read-only GBE-compatible inspection, versioned snapshots, optional confirmed metadata import, and bounded automatic file monitoring are enabled. Notifications and cache updates remain owned by Playnite Achievements.",
                     "Achievement Sources")
             };
         }
@@ -135,6 +145,53 @@ namespace PlayniteAchievementSources
                 Description = "Write local snapshot",
                 Action = _ => WriteLocalSnapshot(game)
             };
+
+            yield return new GameMenuItem
+            {
+                MenuSection = "Achievement Sources",
+                Description = "Prepare GBE-compatible achievement metadata...",
+                Action = _ => PrepareAchievementMetadata(game)
+            };
+
+            yield return new GameMenuItem
+            {
+                MenuSection = "Achievement Sources",
+                Description = "Select explicit runtime-state file...",
+                Action = _ => SelectExplicitStatePath(game)
+            };
+        }
+
+        public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
+        {
+            RebuildMonitoring();
+        }
+
+        public override void OnGameStarted(OnGameStartedEventArgs args)
+        {
+            if (args?.Game != null)
+            {
+                ConfigureMonitoring(args.Game, publishImmediately: true);
+            }
+        }
+
+        public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
+        {
+            fileMonitor.Dispose();
+        }
+
+        internal void RebuildMonitoring()
+        {
+            fileMonitor.Clear();
+            var games = PlayniteApi.Database.Games
+                .Where(item => item != null && item.IsInstalled)
+                .ToList();
+            _ = Task.Run(() =>
+            {
+                foreach (var game in games)
+                {
+                    ConfigureMonitoring(game, publishImmediately: true);
+                }
+            });
         }
 
         private SteamAppIdDetectionResult DetectSteamAppId(Game game)
@@ -250,21 +307,7 @@ namespace PlayniteAchievementSources
                 return;
             }
 
-            var snapshot = new AchievementSnapshot
-            {
-                PlayniteGameId = game.Id,
-                PlayniteGameName = game.Name ?? string.Empty,
-                OverrideMode = Settings.GetOverrideMode(game.Id),
-                EffectiveTrackingMode = Settings.GetEffectiveMode(game.Id),
-                SourceKey = "gbe-compatible",
-                SourceGameId = context.AppId.ToString(),
-                StateKnown = result.HasState,
-                IsCompleteSnapshot = result.IsCompleteSnapshot,
-                DefinitionPath = result.DefinitionPath ?? string.Empty,
-                StatePath = result.StatePath ?? string.Empty,
-                Achievements = result.Achievements.ToList(),
-                Diagnostics = result.Diagnostics.ToList()
-            };
+            var snapshot = CreateSnapshot(game, context, result);
 
             try
             {
@@ -328,14 +371,248 @@ namespace PlayniteAchievementSources
             };
 
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (!string.IsNullOrWhiteSpace(appData))
+            var gameOverride = Settings.GetGameOverride(game.Id);
+            var resolution = configurationResolver.Resolve(
+                context.AppId,
+                context.InstallDirectory,
+                appData,
+                gameOverride?.DefinitionPath,
+                gameOverride?.StatePath);
+            context.ExplicitDefinitionPath = gameOverride?.DefinitionPath ?? string.Empty;
+            context.ExplicitStatePath = gameOverride?.StatePath ?? string.Empty;
+            foreach (var candidate in resolution.DefinitionCandidates.Where(File.Exists))
             {
-                context.SaveRootDirectories.Add(Path.Combine(appData, "GSE Saves"));
-                context.SaveRootDirectories.Add(Path.Combine(appData, "Goldberg SteamEmu Saves"));
+                if (string.IsNullOrWhiteSpace(context.ExplicitDefinitionPath))
+                {
+                    context.ExplicitDefinitionPath = candidate;
+                }
+            }
+
+            foreach (var candidate in resolution.StateCandidates)
+            {
+                context.ExpectedStatePaths.Add(candidate);
             }
 
             result = gbeAchievementReader.Read(context);
+            foreach (var diagnostic in resolution.Diagnostics)
+            {
+                result.Diagnostics.Add(diagnostic);
+            }
             return true;
+        }
+
+        private AchievementSnapshot CreateSnapshot(
+            Game game,
+            GbeAchievementReadContext context,
+            GbeAchievementReadResult result)
+        {
+            return new AchievementSnapshot
+            {
+                PlayniteGameId = game.Id,
+                PlayniteGameName = game.Name ?? string.Empty,
+                OverrideMode = Settings.GetOverrideMode(game.Id),
+                EffectiveTrackingMode = Settings.GetEffectiveMode(game.Id),
+                SourceKey = "gbe-compatible",
+                SourceGameId = context.AppId.ToString(),
+                StateKnown = result.HasState,
+                IsCompleteSnapshot = result.IsCompleteSnapshot,
+                DefinitionPath = result.DefinitionPath ?? string.Empty,
+                StatePath = result.StatePath ?? string.Empty,
+                Achievements = result.Achievements.ToList(),
+                Diagnostics = result.Diagnostics.ToList()
+            };
+        }
+
+        private void ConfigureMonitoring(Game game, bool publishImmediately)
+        {
+            if (game == null ||
+                Settings.GetEffectiveMode(game.Id) == AchievementTrackingMode.Disabled ||
+                Settings.GetEffectiveMode(game.Id) == AchievementTrackingMode.NativeOnly ||
+                !Settings.Settings.EnableLocalSources)
+            {
+                fileMonitor.Remove(game?.Id ?? Guid.Empty);
+                return;
+            }
+
+            var appId = DetectSteamAppId(game);
+            if (!appId.HasResult || appId.IsAmbiguous)
+            {
+                return;
+            }
+
+            var gameOverride = Settings.GetGameOverride(game.Id);
+            var resolution = configurationResolver.Resolve(
+                appId.BestCandidate.AppId,
+                ExpandInstallDirectory(game),
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                gameOverride?.DefinitionPath,
+                gameOverride?.StatePath);
+            if (!resolution.DefinitionCandidates.Any(File.Exists))
+            {
+                return;
+            }
+
+            fileMonitor.Track(
+                game.Id,
+                resolution.WatchDirectories,
+                _ => PublishMonitoredSnapshotAsync(game));
+            if (publishImmediately)
+            {
+                _ = PublishMonitoredSnapshotAsync(game);
+            }
+        }
+
+        private Task PublishMonitoredSnapshotAsync(Game game)
+        {
+            return Task.Run(() =>
+            {
+                for (var attempt = 1; attempt <= 5; attempt++)
+                {
+                    try
+                    {
+                        if (game == null ||
+                            !TryReadLocalAchievementData(game, out var context, out var result, out _) ||
+                            !result.HasDefinitions)
+                        {
+                            return;
+                        }
+
+                        var malformedState = result.Diagnostics.Any(value =>
+                            value.StartsWith(
+                                "A candidate state file was ignored because it was malformed",
+                                StringComparison.OrdinalIgnoreCase));
+                        if (malformedState)
+                        {
+                            if (attempt < 5)
+                            {
+                                Thread.Sleep(200 * attempt);
+                                continue;
+                            }
+
+                            logger.Warn(
+                                $"GBE monitor rejected an unstable or malformed state file for game {game.Id:D}; no snapshot was published.");
+                            return;
+                        }
+
+                        snapshotWriter.Write(GetPluginUserDataPath(), CreateSnapshot(game, context, result));
+                        logger.Info(
+                            $"GBE monitor published game={game.Id:D} stateKnown={result.HasState} complete={result.IsCompleteSnapshot} achievements={result.Achievements.Count}.");
+                        return;
+                    }
+                    catch (IOException exception) when (attempt < 5)
+                    {
+                        logger.Debug(exception, $"GBE monitor read retry {attempt} for game {game?.Id:D}.");
+                        Thread.Sleep(200 * attempt);
+                    }
+                    catch (UnauthorizedAccessException exception) when (attempt < 5)
+                    {
+                        logger.Debug(exception, $"GBE monitor access retry {attempt} for game {game?.Id:D}.");
+                        Thread.Sleep(200 * attempt);
+                    }
+                    catch (Exception exception)
+                    {
+                        logger.Error(exception, $"GBE monitor failed for game {game?.Id:D}.");
+                        return;
+                    }
+                }
+            });
+        }
+
+        private void SelectExplicitStatePath(Game game)
+        {
+            var selected = PlayniteApi.Dialogs.SelectFile("JSON files|*.json");
+            if (string.IsNullOrWhiteSpace(selected))
+            {
+                return;
+            }
+
+            if (!string.Equals(Path.GetFileName(selected), "achievements.json", StringComparison.OrdinalIgnoreCase))
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "Select the emulator-owned runtime achievements.json file.",
+                    "Achievement Sources — State path");
+                return;
+            }
+
+            var current = Settings.GetGameOverride(game.Id);
+            Settings.SetGamePaths(game.Id, current?.DefinitionPath, Path.GetFullPath(selected));
+            ConfigureMonitoring(game, publishImmediately: true);
+        }
+
+        private void PrepareAchievementMetadata(Game game)
+        {
+            if (!Settings.Settings.AllowMetadataPreparation)
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "Managed metadata writes are disabled. Enable “Allow preparing GBE-compatible metadata files” in Achievement Sources settings first.",
+                    "Achievement Sources — Metadata preparation");
+                return;
+            }
+
+            var appId = DetectSteamAppId(game);
+            if (!appId.HasResult || appId.IsAmbiguous)
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "A single deterministic Steam AppID is required before metadata can be prepared.",
+                    "Achievement Sources — Metadata preparation");
+                return;
+            }
+
+            var resolution = configurationResolver.Resolve(
+                appId.BestCandidate.AppId,
+                ExpandInstallDirectory(game),
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                string.Empty,
+                string.Empty);
+            var settingsDirectory = resolution.DefinitionCandidates
+                .Select(Path.GetDirectoryName)
+                .FirstOrDefault(Directory.Exists);
+            if (string.IsNullOrWhiteSpace(settingsDirectory))
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "No recognized existing steam_settings directory was found. Version 1 will not create one speculatively.",
+                    "Achievement Sources — Metadata preparation");
+                return;
+            }
+
+            var source = PlayniteApi.Dialogs.SelectFile("JSON files|*.json");
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                return;
+            }
+
+            var plan = metadataPreparer.CreateImportPlan(appId.BestCandidate.AppId, source, settingsDirectory);
+            if (!plan.IsValid)
+            {
+                PlayniteApi.Dialogs.ShowMessage(plan.Error, "Achievement Sources — Metadata preparation");
+                return;
+            }
+
+            var summary =
+                $"Dry run for {game.Name}\n\nAppID: {plan.AppId}\nMetadata source: {plan.MetadataSource}\n" +
+                $"Write: {plan.DestinationPath}\nBackup existing file: {(plan.DestinationExists ? "Yes" : "No")}\n" +
+                "Runtime state files will not be created or modified.\n\nProceed?";
+            if (PlayniteApi.Dialogs.ShowMessage(
+                    summary,
+                    "Achievement Sources — Metadata preparation",
+                    MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            var result = metadataPreparer.Execute(plan, Settings.Settings.AllowMetadataPreparation, explicitlyConfirmed: true);
+            if (!result.Success)
+            {
+                PlayniteApi.Dialogs.ShowMessage(result.Error, "Achievement Sources — Metadata preparation");
+                return;
+            }
+
+            Settings.SetGamePaths(game.Id, result.DestinationPath, Settings.GetGameOverride(game.Id)?.StatePath);
+            ConfigureMonitoring(game, publishImmediately: true);
+            PlayniteApi.Dialogs.ShowMessage(
+                $"Metadata preparation completed.\n\nFile: {result.DestinationPath}\n" +
+                (string.IsNullOrWhiteSpace(result.BackupPath) ? "No backup was required." : $"Backup: {result.BackupPath}"),
+                "Achievement Sources — Metadata preparation");
         }
 
         private string BuildLocalAchievementMessage(

@@ -2,7 +2,7 @@
 
 ## GBE Fork / Goldberg-compatible JSON
 
-Status: **initial read-only support**
+Status: **GBE-compatible v1 development candidate**
 
 The plugin can now inspect:
 
@@ -12,16 +12,57 @@ The plugin can now inspect:
 - localized `displayName` and `description` values;
 - `icon`, `icon_gray`, and legacy `icongray` references.
 
-The implementation is read-only. It does not create definitions, modify unlock state, alter binaries, or write to platform databases.
+Runtime state access is always read-only. Definition metadata remains read-only by
+default. If the global preparation permission is enabled, a single-game command can
+import an explicitly selected, validated definition array into an existing recognized
+`steam_settings` directory after showing every proposed path and receiving confirmation.
+Replacement creates a timestamped backup and uses an atomic write followed by read-back
+validation. It does not generate `stats.json`.
 
 A missing state file is represented as an incomplete snapshot rather than treated as definitive proof that every achievement is locked.
+
+## Definitions are not runtime state
+
+Installation-side `steam_settings\achievements.json` defines achievement names,
+descriptions, hidden flags, localization, and icons. Emulator-owned
+`<save root>\<AppID>\achievements.json` records the user's earned state, timestamps,
+and progress. A definition file never proves that runtime state is known. The plugin
+never creates or changes the latter file.
+
+## Save layouts
+
+The resolver supports the Windows defaults `%APPDATA%\GSE Saves\<AppID>` and
+`%APPDATA%\Goldberg SteamEmu Saves\<AppID>`. For GBE Fork configuration it reads
+`[user::saves]` values `local_save_path` and `saves_folder_name` from a recognized
+`steam_settings\configs.user.ini`, including portable relative paths. A per-game
+explicit state file can be selected when automatic resolution fails; a numeric parent
+directory that conflicts with the detected AppID is rejected.
+
+Regular and experimental GBE/Goldberg variants are treated alike when they use these
+validated files. Overlay availability is irrelevant and no emulator binary is installed
+or replaced.
+
+## Tracking modes
+
+- `Automatic`: safely choose the best supported source currently available.
+- `NativeOnly`: do not inspect, monitor, or prepare local GBE-compatible data.
+- `LocalOnly`: use supported local data only.
+- `Hybrid`: permit local state and separately permitted metadata enrichment.
+- `Disabled`: do nothing.
+- `Inherit`: use the global default for that game.
+
+Metadata write permission is independent. `LocalOnly` never implies permission to write.
+
+Online metadata controls are disabled by default and identified in the UI as reserved.
+No online Steam schema client is claimed or used in v1; users can explicitly import a
+permitted definition JSON instead. API keys are not used by the v1 runtime.
 
 ## Planned adapters
 
 | Source | Status | Notes |
 |---|---|---|
-| GBE Fork / Goldberg-compatible state | Initial read-only support | Definitions and AppID-scoped state inspection with sanitized tests. |
-| Legacy Goldberg layouts | Partial | Legacy save-root and `icongray` support; additional representative fixtures still needed. |
+| GBE Fork / Goldberg-compatible state | Development candidate | Definition/state reading, configured save roots, monitoring, and sanitized tests. |
+| Legacy Goldberg layouts | Partial | Legacy save-root and `icongray` support; representative real-game acceptance remains. |
 | Generic Steam-compatible JSON | Planned | Strict schema detection; no broad guessing. |
 | GOG online | Research | Existing platform behavior and identifiers will be evaluated. |
 | GOG Galaxy local state | Research | Read-only investigation; no Galaxy database writes. |

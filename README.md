@@ -6,7 +6,10 @@ The project is designed to complement achievement display extensions rather than
 
 ## Project status
 
-Early development. Version 0.5 adds a producer-neutral snapshot catalog under Playnite's extension-data directory. The catalog uses validated relative paths and preserves the distinction between unknown, partial, and complete achievement state. Direct import into Playnite Achievements, live monitoring, notifications, and release packaging are not enabled yet.
+GBE-compatible v1 development candidate. The producer publishes a producer-neutral
+snapshot catalog under Playnite's extension-data directory and monitors only resolved
+definition/state locations. The companion Playnite Achievements draft adds automatic
+single-game import. Release packaging is not enabled.
 
 ## Goals
 
@@ -15,7 +18,7 @@ Early development. Version 0.5 adds a producer-neutral snapshot catalog under Pl
 - Normalize achievement definitions, unlock state, progress, timestamps, and source evidence.
 - Keep local achievement data on the user's computer by default.
 - Provide clear diagnostics when a source is missing, unsupported, or ambiguous.
-- Integrate with Playnite Achievements through a narrow, versioned bridge when that integration becomes available.
+- Integrate with Playnite Achievements through a narrow, versioned file bridge.
 - Support additional local and platform sources incrementally, beginning with common Steam-compatible formats.
 
 ## Non-goals
@@ -50,6 +53,13 @@ Right-click a single game and use:
 - **Achievement Sources > Inspect Steam AppID sources** for AppID evidence;
 - **Achievement Sources > Inspect local achievement data** for read-only GBE/Goldberg-compatible definition and state diagnostics;
 - **Achievement Sources > Write local snapshot** to publish a schema-v1 snapshot and update the local bridge catalog.
+- **Achievement Sources > Prepare GBE-compatible achievement metadata...** to dry-run and explicitly confirm importing user-selected definition JSON into an existing `steam_settings` directory. The global write permission is disabled by default.
+- **Achievement Sources > Select explicit runtime-state file...** when automatic save-root resolution cannot identify the emulator-owned state.
+
+The preparation action may write only installation-side definition metadata. It never
+creates or modifies emulator runtime state. `stats.json` is not generated in v1 because
+achievement definition import does not require it and the plugin does not guess stat
+semantics.
 
 ## Documentation
 

@@ -10,8 +10,9 @@ namespace PlayniteAchievementSources.Settings
     {
         private AchievementTrackingMode defaultTrackingMode = AchievementTrackingMode.Automatic;
         private bool enableLocalSources = true;
-        private bool enableOnlineMetadata = true;
-        private bool useSteamApiWhenLocalMetadataMissing = true;
+        private bool enableOnlineMetadata;
+        private bool useSteamApiWhenLocalMetadataMissing;
+        private bool allowMetadataPreparation;
         private string encryptedSteamApiKey = string.Empty;
         private string steamApiKey = string.Empty;
         private List<GameTrackingOverride> gameTrackingOverrides = new List<GameTrackingOverride>();
@@ -38,6 +39,12 @@ namespace PlayniteAchievementSources.Settings
         {
             get => useSteamApiWhenLocalMetadataMissing;
             set => SetValue(ref useSteamApiWhenLocalMetadataMissing, value);
+        }
+
+        public bool AllowMetadataPreparation
+        {
+            get => allowMetadataPreparation;
+            set => SetValue(ref allowMetadataPreparation, value);
         }
 
         public string EncryptedSteamApiKey
@@ -78,7 +85,11 @@ namespace PlayniteAchievementSources.Settings
         {
             EncryptedSteamApiKey = SecretProtection.Protect(SteamApiKey);
             GameTrackingOverrides = GameTrackingOverrides
-                .Where(item => item != null && item.PlayniteGameId != System.Guid.Empty && item.Mode != AchievementTrackingMode.Inherit)
+                .Where(item => item != null &&
+                    item.PlayniteGameId != System.Guid.Empty &&
+                    (item.Mode != AchievementTrackingMode.Inherit ||
+                     !string.IsNullOrWhiteSpace(item.StatePath) ||
+                     !string.IsNullOrWhiteSpace(item.DefinitionPath)))
                 .GroupBy(item => item.PlayniteGameId)
                 .Select(group => group.Last())
                 .ToList();
@@ -92,6 +103,7 @@ namespace PlayniteAchievementSources.Settings
                 EnableLocalSources = EnableLocalSources,
                 EnableOnlineMetadata = EnableOnlineMetadata,
                 UseSteamApiWhenLocalMetadataMissing = UseSteamApiWhenLocalMetadataMissing,
+                AllowMetadataPreparation = AllowMetadataPreparation,
                 EncryptedSteamApiKey = EncryptedSteamApiKey,
                 SteamApiKey = SteamApiKey,
                 GameTrackingOverrides = GameTrackingOverrides
@@ -103,7 +115,8 @@ namespace PlayniteAchievementSources.Settings
                         PreferredSourceKey = item.PreferredSourceKey,
                         LocalAdapterKey = item.LocalAdapterKey,
                         SourceGameId = item.SourceGameId,
-                        StatePath = item.StatePath
+                        StatePath = item.StatePath,
+                        DefinitionPath = item.DefinitionPath
                     })
                     .ToList()
             };
