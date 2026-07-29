@@ -1,5 +1,7 @@
 using Playnite.SDK;
 using PlayniteAchievementSources.Models;
+using PlayniteAchievementSources.Tracking;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -48,8 +50,26 @@ namespace PlayniteAchievementSources.Settings
 
         public void EndEdit()
         {
-            Settings.PrepareForSave();
-            plugin.SavePluginSettings(Settings);
+            SaveImmediately();
+        }
+
+        public AchievementTrackingMode GetOverrideMode(Guid playniteGameId)
+        {
+            return GameTrackingPolicy.GetOverrideMode(Settings.GameTrackingOverrides, playniteGameId);
+        }
+
+        public AchievementTrackingMode GetEffectiveMode(Guid playniteGameId)
+        {
+            return GameTrackingPolicy.Resolve(
+                Settings.DefaultTrackingMode,
+                Settings.GameTrackingOverrides,
+                playniteGameId);
+        }
+
+        public void SetGameTrackingMode(Guid playniteGameId, AchievementTrackingMode mode)
+        {
+            GameTrackingPolicy.SetOverride(Settings.GameTrackingOverrides, playniteGameId, mode);
+            SaveImmediately();
         }
 
         public bool VerifySettings(out List<string> errors)
@@ -68,6 +88,12 @@ namespace PlayniteAchievementSources.Settings
             }
 
             return errors.Count == 0;
+        }
+
+        private void SaveImmediately()
+        {
+            Settings.PrepareForSave();
+            plugin.SavePluginSettings(Settings);
         }
 
         private static bool IsHexCharacter(char value)
