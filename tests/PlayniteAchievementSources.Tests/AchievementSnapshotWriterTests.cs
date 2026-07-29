@@ -46,7 +46,7 @@ namespace PlayniteAchievementSources.Tests
                 Assert.Contains("\"IsCompleteSnapshot\":false", json);
                 Assert.Contains("\"Format\":\"playnite-achievement-sources.index\"", indexJson);
                 Assert.Contains("\"SnapshotRelativePath\":\"snapshots/v1/", indexJson);
-                Assert.DoesNotContain(rootDirectory, indexJson, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain(rootDirectory, indexJson);
                 Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path), "*.tmp", SearchOption.TopDirectoryOnly));
                 Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(indexPath), "*.tmp", SearchOption.TopDirectoryOnly));
             }
