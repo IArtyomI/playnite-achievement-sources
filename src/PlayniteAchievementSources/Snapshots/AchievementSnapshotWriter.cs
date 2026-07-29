@@ -1,6 +1,9 @@
 using PlayniteAchievementSources.Models;
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Web.Script.Serialization;
 
@@ -44,7 +47,7 @@ namespace PlayniteAchievementSources.Snapshots
 
             try
             {
-                var json = serializer.Serialize(snapshot);
+                var json = serializer.Serialize(CreatePayload(snapshot));
                 File.WriteAllText(temporaryPath, json, new UTF8Encoding(false));
 
                 if (File.Exists(destinationPath))
@@ -65,6 +68,49 @@ namespace PlayniteAchievementSources.Snapshots
                     File.Delete(temporaryPath);
                 }
             }
+        }
+
+        private static IDictionary<string, object> CreatePayload(AchievementSnapshot snapshot)
+        {
+            var achievements = (snapshot.Achievements ?? new List<AchievementRecord>())
+                .Select(record => (object)new Dictionary<string, object>
+                {
+                    ["SourceKey"] = record.SourceKey ?? string.Empty,
+                    ["SourceGameId"] = record.SourceGameId ?? string.Empty,
+                    ["AchievementId"] = record.AchievementId ?? string.Empty,
+                    ["DisplayName"] = record.DisplayName ?? string.Empty,
+                    ["Description"] = record.Description ?? string.Empty,
+                    ["LockedIconPath"] = record.LockedIconPath ?? string.Empty,
+                    ["UnlockedIconPath"] = record.UnlockedIconPath ?? string.Empty,
+                    ["IsHidden"] = record.IsHidden,
+                    ["IsUnlocked"] = record.IsUnlocked,
+                    ["UnlockTimeUtc"] = record.UnlockTimeUtc.HasValue
+                        ? record.UnlockTimeUtc.Value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+                        : null,
+                    ["CurrentProgress"] = record.CurrentProgress,
+                    ["MaximumProgress"] = record.MaximumProgress,
+                    ["EvidencePath"] = record.EvidencePath ?? string.Empty
+                })
+                .ToList();
+
+            return new Dictionary<string, object>
+            {
+                ["Format"] = AchievementSnapshot.CurrentFormat,
+                ["SchemaVersion"] = AchievementSnapshot.CurrentSchemaVersion,
+                ["GeneratedAtUtc"] = snapshot.GeneratedAtUtc.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+                ["PlayniteGameId"] = snapshot.PlayniteGameId.ToString("D"),
+                ["PlayniteGameName"] = snapshot.PlayniteGameName ?? string.Empty,
+                ["OverrideMode"] = snapshot.OverrideMode.ToString(),
+                ["EffectiveTrackingMode"] = snapshot.EffectiveTrackingMode.ToString(),
+                ["SourceKey"] = snapshot.SourceKey ?? string.Empty,
+                ["SourceGameId"] = snapshot.SourceGameId ?? string.Empty,
+                ["StateKnown"] = snapshot.StateKnown,
+                ["IsCompleteSnapshot"] = snapshot.IsCompleteSnapshot,
+                ["DefinitionPath"] = snapshot.DefinitionPath ?? string.Empty,
+                ["StatePath"] = snapshot.StatePath ?? string.Empty,
+                ["Achievements"] = achievements,
+                ["Diagnostics"] = snapshot.Diagnostics ?? new List<string>()
+            };
         }
     }
 }
