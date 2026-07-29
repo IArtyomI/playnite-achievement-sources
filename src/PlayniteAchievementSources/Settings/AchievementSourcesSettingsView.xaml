@@ -67,7 +67,7 @@
             <TextBlock FontSize="14" FontWeight="SemiBold" Text="Current milestone" />
             <TextBlock Margin="0,4,0,0"
                        TextWrapping="Wrap"
-                       Text="Per-game tracking modes and versioned local snapshots are available. Notifications, live monitoring, and Playnite Achievements bridge output are not enabled yet." />
+                       Text="Per-game tracking modes, versioned local snapshots, and a producer-neutral bridge catalog are available. Direct Playnite Achievements import, notifications, and live monitoring are not enabled yet." />
         </StackPanel>
     </ScrollViewer>
 </UserControl>
