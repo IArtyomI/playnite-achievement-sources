@@ -81,7 +81,7 @@ namespace PlayniteAchievementSources
                 MenuSection = "@Achievement Sources",
                 Description = "Show development status",
                 Action = _ => PlayniteApi.Dialogs.ShowMessage(
-                    "Achievement Sources is installed. Settings, per-game tracking modes, Steam AppID diagnostics, read-only GBE/Goldberg-compatible inspection, and versioned local snapshots are enabled. Live monitoring, notifications, and Playnite Achievements bridge output are not enabled yet.",
+                    "Achievement Sources is installed. Settings, per-game tracking modes, Steam AppID diagnostics, read-only GBE/Goldberg-compatible inspection, versioned local snapshots, and bridge catalog output are enabled. Live monitoring, notifications, and direct Playnite Achievements import are not enabled yet.",
                     "Achievement Sources")
             };
         }
