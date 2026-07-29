@@ -6,7 +6,7 @@ The project is designed to complement achievement display extensions rather than
 
 ## Project status
 
-Early development. Version 0.4 adds persistent per-game tracking modes and versioned local snapshots on top of the existing read-only GBE/Goldberg-compatible definition and state reader. Achievement import into Playnite Achievements, live monitoring, notifications, and release packaging are not enabled yet.
+Early development. Version 0.5 adds a producer-neutral snapshot catalog under Playnite's extension-data directory. The catalog uses validated relative paths and preserves the distinction between unknown, partial, and complete achievement state. Direct import into Playnite Achievements, live monitoring, notifications, and release packaging are not enabled yet.
 
 ## Goals
 
@@ -47,10 +47,9 @@ After the build succeeds, add the printed output directory in Playnite under **S
 
 Right-click a single game and use:
 
-- **Achievement Sources > Tracking mode** to select a persistent per-game override;
 - **Achievement Sources > Inspect Steam AppID sources** for AppID evidence;
 - **Achievement Sources > Inspect local achievement data** for read-only GBE/Goldberg-compatible definition and state diagnostics;
-- **Achievement Sources > Write local snapshot** to write a versioned JSON snapshot under Playnite's extension-data directory.
+- **Achievement Sources > Write local snapshot** to publish a schema-v1 snapshot and update the local bridge catalog.
 
 ## Documentation
 
@@ -58,6 +57,6 @@ Right-click a single game and use:
 - [Provider contract](docs/provider-contract.md)
 - [Privacy model](docs/privacy-model.md)
 - [Supported formats](docs/supported-formats.md)
-- [Snapshot format](docs/snapshot-format.md)
+- [Playnite Achievements bridge](docs/playnite-achievements-bridge.md)
 - [Local validation](docs/local-validation.md)
 - [Separate-plugin decision](docs/adr/0001-separate-plugin.md)

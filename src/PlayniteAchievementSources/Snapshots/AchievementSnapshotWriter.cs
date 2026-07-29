@@ -11,6 +11,8 @@ namespace PlayniteAchievementSources.Snapshots
 {
     public sealed class AchievementSnapshotWriter
     {
+        private readonly AchievementSnapshotCatalog catalog = new AchievementSnapshotCatalog();
+
         public string Write(string pluginDataDirectory, AchievementSnapshot snapshot)
         {
             if (string.IsNullOrWhiteSpace(pluginDataDirectory))
@@ -59,6 +61,7 @@ namespace PlayniteAchievementSources.Snapshots
                     File.Move(temporaryPath, destinationPath);
                 }
 
+                catalog.Update(pluginDataDirectory, snapshot, destinationPath);
                 return destinationPath;
             }
             finally
