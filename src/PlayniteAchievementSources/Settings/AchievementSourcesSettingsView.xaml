@@ -39,7 +39,7 @@
                       Content="Allow online metadata lookups" />
             <TextBlock Margin="20,3,0,0"
                        TextWrapping="Wrap"
-                       Text="Reserved for permitted metadata providers. Version 1 does not make online schema requests; use explicit JSON import when local definitions are missing." />
+                       Text="Permits configured metadata providers to retrieve achievement definitions. Online metadata never supplies or changes runtime unlock state." />
 
             <Separator Margin="0,20,0,18" />
 
@@ -61,8 +61,7 @@
 
             <CheckBox Margin="0,12,0,0"
                       IsChecked="{Binding Settings.UseSteamApiWhenLocalMetadataMissing, Mode=TwoWay}"
-                      Content="Use the Steam API when local metadata is missing (not available in v1)"
-                      IsEnabled="False" />
+                      Content="Use Steam GetSchemaForGame when local metadata is missing" />
 
             <Button Width="100"
                     Margin="0,12,0,0"
