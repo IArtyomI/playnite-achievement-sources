@@ -2,11 +2,11 @@
 
 Achievement Sources is an independent Playnite extension for discovering, reading, and normalizing achievement data from local and online-compatible sources.
 
-The project is designed to complement achievement display extensions rather than replace them. It provides per-game source control, privacy-conscious local tracking, diagnostics, and a future versioned integration format that other Playnite extensions can consume.
+The project is designed to complement achievement display extensions rather than replace them. It provides per-game source control, privacy-conscious local tracking, diagnostics, and a versioned integration format that other Playnite extensions can consume.
 
 ## Project status
 
-Early development. Version 0.3 adds initial read-only inspection of GBE/Goldberg-compatible achievement definitions and AppID-scoped unlock state, including progress and timestamps. Achievement import into Playnite Achievements, live monitoring, notifications, and release packaging are not enabled yet.
+Early development. Version 0.4 adds persistent per-game tracking modes and versioned local snapshots on top of the existing read-only GBE/Goldberg-compatible definition and state reader. Achievement import into Playnite Achievements, live monitoring, notifications, and release packaging are not enabled yet.
 
 ## Goals
 
@@ -47,8 +47,10 @@ After the build succeeds, add the printed output directory in Playnite under **S
 
 Right-click a single game and use:
 
+- **Achievement Sources > Tracking mode** to select a persistent per-game override;
 - **Achievement Sources > Inspect Steam AppID sources** for AppID evidence;
-- **Achievement Sources > Inspect local achievement data** for read-only GBE/Goldberg-compatible definition and state diagnostics.
+- **Achievement Sources > Inspect local achievement data** for read-only GBE/Goldberg-compatible definition and state diagnostics;
+- **Achievement Sources > Write local snapshot** to write a versioned JSON snapshot under Playnite's extension-data directory.
 
 ## Documentation
 
@@ -56,5 +58,6 @@ Right-click a single game and use:
 - [Provider contract](docs/provider-contract.md)
 - [Privacy model](docs/privacy-model.md)
 - [Supported formats](docs/supported-formats.md)
+- [Snapshot format](docs/snapshot-format.md)
 - [Local validation](docs/local-validation.md)
 - [Separate-plugin decision](docs/adr/0001-separate-plugin.md)
