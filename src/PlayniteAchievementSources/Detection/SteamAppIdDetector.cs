@@ -212,7 +212,8 @@ namespace PlayniteAchievementSources.Detection
         {
             return fileName.Equals("steam_appid.txt", StringComparison.OrdinalIgnoreCase) ||
                    fileName.Equals("configs.app.ini", StringComparison.OrdinalIgnoreCase) ||
-                   fileName.Equals("configs.main.ini", StringComparison.OrdinalIgnoreCase);
+                   fileName.Equals("configs.main.ini", StringComparison.OrdinalIgnoreCase) ||
+                   fileName.Equals("steam_emu.ini", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryReadAppId(string filePath, out uint appId)
@@ -257,12 +258,18 @@ namespace PlayniteAchievementSources.Detection
                 return "steam_appid.txt";
             }
 
+            if (fileName.Equals("steam_emu.ini", StringComparison.OrdinalIgnoreCase))
+            {
+                return "RUNE-compatible steam_emu.ini";
+            }
+
             return "Steam-compatible INI configuration";
         }
 
         private static int GetFilePriority(string fileName, string relativePath)
         {
             var priority = fileName.Equals("steam_appid.txt", StringComparison.OrdinalIgnoreCase) ? 900 :
+                           fileName.Equals("steam_emu.ini", StringComparison.OrdinalIgnoreCase) ? 850 :
                            fileName.Equals("configs.app.ini", StringComparison.OrdinalIgnoreCase) ? 800 : 700;
 
             if (relativePath.IndexOf("steam_settings", StringComparison.OrdinalIgnoreCase) >= 0)
