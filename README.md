@@ -55,6 +55,7 @@ Right-click a single game and use:
 - **Achievement Sources > Write local snapshot** to publish a schema-v1 snapshot and update the local bridge catalog.
 - **Achievement Sources > Prepare GBE-compatible achievement metadata...** to dry-run and explicitly confirm importing user-selected definition JSON into an existing `steam_settings` directory. The global write permission is disabled by default.
 - **Achievement Sources > Select explicit runtime-state file...** when automatic save-root resolution cannot identify the emulator-owned state.
+- **Achievement Sources > Select explicit definition file...** for a validated nonstandard local definition location that should be read explicitly rather than accepted by broad discovery.
 
 The preparation action may write only installation-side definition metadata. It never
 creates or modifies emulator runtime state. `stats.json` is not generated in v1 because

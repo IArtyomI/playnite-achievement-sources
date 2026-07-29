@@ -33,6 +33,10 @@ namespace PlayniteAchievementSources.Sources.Gbe
             }
 
             AddExplicitFile(explicitDefinitionPath, "achievements.json", result.DefinitionCandidates, result.Diagnostics);
+            if (result.DefinitionCandidates.Count > 0)
+            {
+                AddUnique(result.WatchDirectories, Path.GetDirectoryName(result.DefinitionCandidates[0]));
+            }
             AddExplicitState(explicitStatePath, appId, result);
 
             foreach (var settingsDirectory in FindSteamSettingsDirectories(installDirectory, result.Diagnostics))

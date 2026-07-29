@@ -38,6 +38,10 @@ The resolver supports the Windows defaults `%APPDATA%\GSE Saves\<AppID>` and
 explicit state file can be selected when automatic resolution fails; a numeric parent
 directory that conflicts with the detected AppID is rejected.
 
+A nonstandard definition file outside recognized `steam_settings` layouts is never
+accepted by broad discovery. It can be selected explicitly per game after schema
+validation, and remains read-only.
+
 Regular and experimental GBE/Goldberg variants are treated alike when they use these
 validated files. Overlay availability is irrelevant and no emulator binary is installed
 or replaced.

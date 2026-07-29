@@ -65,6 +65,21 @@ namespace PlayniteAchievementSources.Tests
         }
 
         [Fact]
+        public void ExplicitDefinitionPathAddsOnlyItsImmediateWatchDirectory()
+        {
+            var definition = Path.Combine(root, "custom", "achievements.json");
+            var result = new GbeConfigurationResolver().Resolve(
+                632470,
+                null,
+                null,
+                definition,
+                null);
+
+            Assert.Contains(definition, result.DefinitionCandidates);
+            Assert.Contains(Path.GetDirectoryName(definition), result.WatchDirectories);
+        }
+
+        [Fact]
         public void TraversalIsBoundedAndReparseDirectoriesAreNotRequired()
         {
             var install = Path.Combine(root, "game");

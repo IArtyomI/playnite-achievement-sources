@@ -159,6 +159,13 @@ namespace PlayniteAchievementSources
                 Description = "Select explicit runtime-state file...",
                 Action = _ => SelectExplicitStatePath(game)
             };
+
+            yield return new GameMenuItem
+            {
+                MenuSection = "Achievement Sources",
+                Description = "Select explicit definition file...",
+                Action = _ => SelectExplicitDefinitionPath(game)
+            };
         }
 
         public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
@@ -537,6 +544,53 @@ namespace PlayniteAchievementSources
             var current = Settings.GetGameOverride(game.Id);
             Settings.SetGamePaths(game.Id, current?.DefinitionPath, Path.GetFullPath(selected));
             ConfigureMonitoring(game, publishImmediately: true);
+        }
+
+        private void SelectExplicitDefinitionPath(Game game)
+        {
+            var selected = PlayniteApi.Dialogs.SelectFile("JSON files|*.json");
+            if (string.IsNullOrWhiteSpace(selected))
+            {
+                return;
+            }
+
+            if (!string.Equals(Path.GetFileName(selected), "achievements.json", StringComparison.OrdinalIgnoreCase))
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "Select a GBE-compatible definition file named achievements.json.",
+                    "Achievement Sources — Definition path");
+                return;
+            }
+
+            var appId = DetectSteamAppId(game);
+            if (!appId.HasResult || appId.IsAmbiguous)
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "A single deterministic Steam AppID is required before selecting definition metadata.",
+                    "Achievement Sources — Definition path");
+                return;
+            }
+
+            var fullPath = Path.GetFullPath(selected);
+            var validation = gbeAchievementReader.Read(new GbeAchievementReadContext
+            {
+                AppId = appId.BestCandidate.AppId,
+                ExplicitDefinitionPath = fullPath
+            });
+            if (!validation.HasDefinitions)
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "The selected file is not a supported GBE-compatible definition array.",
+                    "Achievement Sources — Definition path");
+                return;
+            }
+
+            var current = Settings.GetGameOverride(game.Id);
+            Settings.SetGamePaths(game.Id, fullPath, current?.StatePath);
+            ConfigureMonitoring(game, publishImmediately: true);
+            PlayniteApi.Dialogs.ShowMessage(
+                $"The read-only definition override was saved.\n\n{fullPath}\n\nRuntime state remains separate and was not modified.",
+                "Achievement Sources — Definition path");
         }
 
         private void PrepareAchievementMetadata(Game game)
