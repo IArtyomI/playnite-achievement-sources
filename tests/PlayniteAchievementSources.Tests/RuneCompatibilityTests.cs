@@ -1,7 +1,6 @@
 using PlayniteAchievementSources.Detection;
 using PlayniteAchievementSources.Sources.Gbe;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -112,8 +111,10 @@ UnlockTime=1763015128
             Assert.True(read.Achievements.Single(item => item.AchievementId == "ACH_FIRST").IsUnlocked);
             var numeric = read.Achievements.Single(item => item.AchievementId == "10");
             Assert.True(numeric.IsUnlocked);
-            Assert.Equal(2d, numeric.CurrentProgress);
-            Assert.Equal(5d, numeric.MaximumProgress);
+            Assert.True(numeric.CurrentProgress.HasValue);
+            Assert.True(numeric.MaximumProgress.HasValue);
+            Assert.Equal(2d, numeric.CurrentProgress.Value);
+            Assert.Equal(5d, numeric.MaximumProgress.Value);
             Assert.NotNull(numeric.UnlockTimeUtc);
             Assert.False(read.Achievements.Single(item => item.AchievementId == "ACH_LOCKED").IsUnlocked);
         }
