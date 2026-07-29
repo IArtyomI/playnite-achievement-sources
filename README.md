@@ -53,14 +53,16 @@ Right-click a single game and use:
 - **Achievement Sources > Inspect Steam AppID sources** for AppID evidence;
 - **Achievement Sources > Inspect local achievement data** for read-only GBE/Goldberg-compatible definition and state diagnostics;
 - **Achievement Sources > Write local snapshot** to publish a schema-v1 snapshot and update the local bridge catalog.
-- **Achievement Sources > Prepare GBE-compatible achievement metadata...** to dry-run and explicitly confirm importing user-selected definition JSON into an existing `steam_settings` directory. The global write permission is disabled by default.
+- **Achievement Sources > Prepare GBE-compatible achievement metadata...** to retrieve definitions from Steam's official `GetSchemaForGame` API when both online metadata options and a protected API key are configured, or to import a user-selected definition JSON offline. The command shows a dry run and requires explicit confirmation before writing to an existing `steam_settings` directory. The global write permission is disabled by default.
 - **Achievement Sources > Select explicit runtime-state file...** when automatic save-root resolution cannot identify the emulator-owned state.
 - **Achievement Sources > Select explicit definition file...** for a validated nonstandard local definition location that should be read explicitly rather than accepted by broad discovery.
 
-The preparation action may write only installation-side definition metadata. It never
-creates or modifies emulator runtime state. `stats.json` is not generated in v1 because
-achievement definition import does not require it and the plugin does not guess stat
-semantics.
+The preparation action may write only installation-side definition metadata. Existing
+files are backed up, replacements are atomic, and failed read-back validation restores
+the original file. Retrieved non-secret schema data is cached under this extension's
+own data directory. The action never creates or modifies emulator runtime state.
+`stats.json` is not generated in v1 because achievement definition preparation does not
+require it and the plugin does not guess stat semantics.
 
 ## Documentation
 

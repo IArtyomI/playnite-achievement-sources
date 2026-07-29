@@ -62,10 +62,14 @@ namespace PlayniteAchievementSources.Metadata
     {
         private readonly GbeAchievementReader reader = new GbeAchievementReader();
         private readonly IGbeDefinitionMetadataSource importSource;
+        private readonly Func<uint, string, bool> destinationValidator;
 
-        public GbeMetadataPreparer(IGbeDefinitionMetadataSource importSource = null)
+        public GbeMetadataPreparer(
+            IGbeDefinitionMetadataSource importSource = null,
+            Func<uint, string, bool> destinationValidator = null)
         {
             this.importSource = importSource ?? new ExplicitJsonDefinitionMetadataSource();
+            this.destinationValidator = destinationValidator;
         }
 
         public GbeMetadataPreparationPlan CreateImportPlan(
@@ -157,15 +161,24 @@ namespace PlayniteAchievementSources.Metadata
                 }
             }
 
+            var destinationExisted = File.Exists(plan.DestinationPath);
+            byte[] originalBytes = null;
             var temporaryPath = plan.DestinationPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             var replacementBackupPath = plan.DestinationPath + "." + Guid.NewGuid().ToString("N") + ".replace-backup";
             try
             {
                 File.WriteAllBytes(temporaryPath, sourceBytes);
-                if (File.Exists(plan.DestinationPath))
+                using (var stream = new FileStream(temporaryPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
+                    stream.Flush();
+                }
+
+                if (destinationExisted)
+                {
+                    originalBytes = File.ReadAllBytes(plan.DestinationPath);
                     result.BackupPath = plan.DestinationPath + ".achievement-sources-backup-" +
-                        DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + ".json";
+                        DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff") + "-" +
+                        Guid.NewGuid().ToString("N") + ".json";
                     File.Copy(plan.DestinationPath, result.BackupPath, false);
                     File.Replace(temporaryPath, plan.DestinationPath, replacementBackupPath);
                 }
@@ -174,12 +187,14 @@ namespace PlayniteAchievementSources.Metadata
                     File.Move(temporaryPath, plan.DestinationPath);
                 }
 
-                var verification = reader.Read(new GbeAchievementReadContext
-                {
-                    AppId = plan.AppId,
-                    ExplicitDefinitionPath = plan.DestinationPath
-                });
-                if (!verification.HasDefinitions)
+                var valid = destinationValidator != null
+                    ? destinationValidator(plan.AppId, plan.DestinationPath)
+                    : reader.Read(new GbeAchievementReadContext
+                    {
+                        AppId = plan.AppId,
+                        ExplicitDefinitionPath = plan.DestinationPath
+                    }).HasDefinitions;
+                if (!valid)
                 {
                     throw new InvalidDataException("The written definition file failed read-back validation.");
                 }
@@ -191,6 +206,32 @@ namespace PlayniteAchievementSources.Metadata
             }
             catch (Exception exception)
             {
+                try
+                {
+                    if (destinationExisted && originalBytes != null)
+                    {
+                        var restorePath = plan.DestinationPath + "." + Guid.NewGuid().ToString("N") + ".restore";
+                        File.WriteAllBytes(restorePath, originalBytes);
+                        if (File.Exists(plan.DestinationPath))
+                        {
+                            File.Replace(restorePath, plan.DestinationPath, replacementBackupPath);
+                        }
+                        else
+                        {
+                            File.Move(restorePath, plan.DestinationPath);
+                        }
+                    }
+                    else if (!destinationExisted && File.Exists(plan.DestinationPath))
+                    {
+                        File.Delete(plan.DestinationPath);
+                    }
+                }
+                catch (Exception restoreException)
+                {
+                    result.Error = exception.Message + " Automatic restoration also failed: " + restoreException.Message;
+                    return result;
+                }
+
                 result.Error = exception.Message;
                 return result;
             }

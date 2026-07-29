@@ -40,6 +40,7 @@ namespace PlayniteAchievementSources
         private readonly AchievementSnapshotWriter snapshotWriter = new AchievementSnapshotWriter();
         private readonly GbeConfigurationResolver configurationResolver = new GbeConfigurationResolver();
         private readonly GbeMetadataPreparer metadataPreparer = new GbeMetadataPreparer();
+        private readonly SteamSchemaMetadataSource steamSchemaMetadataSource = new SteamSchemaMetadataSource();
         private readonly DebouncedFileMonitor fileMonitor = new DebouncedFileMonitor();
         private readonly ILogger logger = LogManager.GetLogger();
 
@@ -462,7 +463,8 @@ namespace PlayniteAchievementSources
             fileMonitor.Track(
                 game.Id,
                 resolution.WatchDirectories,
-                _ => PublishMonitoredSnapshotAsync(game));
+                _ => PublishMonitoredSnapshotAsync(game),
+                resolution.StateCandidates);
             if (publishImmediately)
             {
                 _ = PublishMonitoredSnapshotAsync(game);
@@ -593,7 +595,7 @@ namespace PlayniteAchievementSources
                 "Achievement Sources — Definition path");
         }
 
-        private void PrepareAchievementMetadata(Game game)
+        private async void PrepareAchievementMetadata(Game game)
         {
             if (!Settings.Settings.AllowMetadataPreparation)
             {
@@ -629,10 +631,46 @@ namespace PlayniteAchievementSources
                 return;
             }
 
-            var source = PlayniteApi.Dialogs.SelectFile("JSON files|*.json");
+            string source = null;
+            string onlineError = string.Empty;
+            var usedOnlineSource = Settings.Settings.EnableOnlineMetadata &&
+                Settings.Settings.UseSteamApiWhenLocalMetadataMissing;
+            if (usedOnlineSource)
+            {
+                var schema = await steamSchemaMetadataSource.FetchAsync(
+                    appId.BestCandidate.AppId,
+                    Settings.Settings.SteamApiKey,
+                    "english",
+                    GetPluginUserDataPath(),
+                    CancellationToken.None);
+                if (schema.Success)
+                {
+                    source = schema.GeneratedDefinitionPath;
+                }
+                else
+                {
+                    onlineError = schema.Error;
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(source))
             {
-                return;
+                var explanation = usedOnlineSource
+                    ? onlineError + "\n\nSelect a permitted local GBE-compatible achievements.json instead?"
+                    : "Online Steam schema retrieval is disabled. Select a permitted local GBE-compatible achievements.json instead?";
+                if (PlayniteApi.Dialogs.ShowMessage(
+                        explanation,
+                        "Achievement Sources — Metadata preparation",
+                        MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                source = PlayniteApi.Dialogs.SelectFile("JSON files|*.json");
+                if (string.IsNullOrWhiteSpace(source))
+                {
+                    return;
+                }
             }
 
             var plan = metadataPreparer.CreateImportPlan(appId.BestCandidate.AppId, source, settingsDirectory);
@@ -640,6 +678,10 @@ namespace PlayniteAchievementSources
             {
                 PlayniteApi.Dialogs.ShowMessage(plan.Error, "Achievement Sources — Metadata preparation");
                 return;
+            }
+            if (usedOnlineSource && string.IsNullOrWhiteSpace(onlineError))
+            {
+                plan.MetadataSource = "Official Steam GetSchemaForGame v2";
             }
 
             var summary =

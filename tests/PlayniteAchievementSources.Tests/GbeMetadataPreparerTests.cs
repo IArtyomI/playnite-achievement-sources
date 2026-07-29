@@ -106,6 +106,30 @@ namespace PlayniteAchievementSources.Tests
                 path => Path.GetFileName(path) == "achievements.json");
         }
 
+        [Fact]
+        public void ReadBackFailureAutomaticallyRestoresOriginal()
+        {
+            var source = WriteDefinitions("source.json", "ACH_NEW");
+            var settings = Path.Combine(root, "steam_settings");
+            Directory.CreateDirectory(settings);
+            var destination = Path.Combine(settings, "achievements.json");
+            var original = "[{\"name\":\"ACH_OLD\",\"displayName\":\"Old\",\"description\":\"Old\"}]";
+            File.WriteAllText(destination, original);
+            var preparer = new GbeMetadataPreparer(
+                new ExplicitJsonDefinitionMetadataSource(),
+                (_, __) => false);
+
+            var result = preparer.Execute(
+                preparer.CreateImportPlan(10, source, settings),
+                true,
+                true);
+
+            Assert.False(result.Success);
+            Assert.Equal(original, File.ReadAllText(destination));
+            Assert.Empty(Directory.GetFiles(settings, "*.tmp"));
+            Assert.Empty(Directory.GetFiles(settings, "*.restore"));
+        }
+
         private string WriteDefinitions(string name, string apiName)
         {
             var path = Path.Combine(root, name);

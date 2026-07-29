@@ -17,7 +17,11 @@ default. If the global preparation permission is enabled, a single-game command 
 import an explicitly selected, validated definition array into an existing recognized
 `steam_settings` directory after showing every proposed path and receiving confirmation.
 Replacement creates a timestamped backup and uses an atomic write followed by read-back
-validation. It does not generate `stats.json`.
+validation. When online lookup is explicitly enabled and a protected Steam Web API key
+is configured, the same command can retrieve the game's public achievement schema from
+Steam's official `ISteamUserStats/GetSchemaForGame/v2` endpoint. Validated non-secret
+responses are cached only under this extension's data directory. Local JSON import
+remains the offline fallback. It does not generate `stats.json`.
 
 A missing state file is represented as an incomplete snapshot rather than treated as definitive proof that every achievement is locked.
 
@@ -57,9 +61,12 @@ or replaced.
 
 Metadata write permission is independent. `LocalOnly` never implies permission to write.
 
-Online metadata controls are disabled by default and identified in the UI as reserved.
-No online Steam schema client is claimed or used in v1; users can explicitly import a
-permitted definition JSON instead. API keys are not used by the v1 runtime.
+Online metadata controls are disabled by default. Enabling both online metadata lookup
+and Steam schema use permits definition retrieval only during the explicitly invoked
+preparation command. Requests use HTTPS, bounded time and response size, and never log,
+export, cache, or display the API key. The key is protected with Windows current-user
+data protection in Playnite settings. Online definitions never supply or infer runtime
+unlock state.
 
 ## Planned adapters
 
